@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактировать {{ algorithm.name }} - Сервис Алгоритмов{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+    <h1>Редактировать алгоритм</h1>
+    
+    <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007bff;">
+        <strong>Вы редактируете:</strong> {{ algorithm.name }}<br>
+        <small>Создан: {{ algorithm.created_at|date:"d.m.Y H:i" }} | Последнее обновление: {{ algorithm.updated_at|date:"d.m.Y H:i" }}</small>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Название алгоритма:</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+                <div style="color: #dc3545; font-size: 14px; margin-top: 5px;">
+                    {% for error in form.name.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Теги:</label>
+            {{ form.tegs }}
+            <small style="color: #666;">Укажите теги через запятую (например: сортировка, алгоритмы, Python)</small>
+            {% if form.tegs.errors %}
+                <div style="color: #dc3545; font-size: 14px; margin-top: 5px;">
+                    {% for error in form.tegs.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Описание:</label>
+            {{ form.description }}
+            {% if form.description.errors %}
+                <div style="color: #dc3545; font-size: 14px; margin-top: 5px;">
+                    {% for error in form.description.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Код:</label>
+            {{ form.code }}
+            {% if form.code.errors %}
+                <div style="color: #dc3545; font-size: 14px; margin-top: 5px;">
+                    {% for error in form.code.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+            <a href="{% url 'algorithm_detail' algorithm.id %}" class="btn btn-secondary">Отмена</a>
+            <a href="{% url 'algorithm_list' %}" style="margin-left: auto; color: #6c757d; text-decoration: none;">← К списку алгоритмов</a>
+        </div>
+    </form>
+</div>
+
+<style>
+    input, textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-family: inherit;
+    }
+    textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+    .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s;
+    }
+    .btn-primary {
+        background: #4CAF50;
+        color: white;
+    }
+    .btn-primary:hover {
+        background: #45a049;
+    }
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+</style>
+{% endblock %}

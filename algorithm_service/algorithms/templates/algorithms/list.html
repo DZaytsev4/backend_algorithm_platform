@@ -80,12 +80,13 @@
                     </div>
                     
                     <!-- Информация об авторе и кнопка -->
+                    <!-- В блоке с информацией об авторе и кнопкой -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 15px; border-top: 1px solid #f0f0f0;">
                         <div style="font-size: 12px; color: #999;">
                             <div>
                                 Автор: 
                                 <a href="{% url 'user_profile' algorithm.author_name %}" 
-                                   style="color: #4CAF50; text-decoration: none; font-weight: 500;">
+                                style="color: #4CAF50; text-decoration: none; font-weight: 500;">
                                     {{ algorithm.author_name }}
                                 </a>
                             </div>
@@ -93,11 +94,19 @@
                                 Создан: {% timezone "Europe/Moscow" %}{{ algorithm.created_at|date:"d.m.Y H:i" }}{% endtimezone %}
                             </div>
                         </div>
-                        <a href="{% url 'algorithm_detail' algorithm.id %}" 
-                           style="background: #4CAF50; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-size: 14px; transition: background-color 0.3s; white-space: nowrap;">
-                            Подробнее →
-                        </a>
-                    </div>
+                        <div style="display: flex; gap: 8px;">
+                            <a href="{% url 'algorithm_detail' algorithm.id %}" 
+                            style="background: #4CAF50; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-size: 12px; transition: background-color 0.3s; white-space: nowrap;">
+                                Подробнее
+                            </a>
+                            {% if user.is_authenticated and user.username == algorithm.author_name %}
+                                <a href="{% url 'edit_algorithm' algorithm.id %}" 
+                                style="background: #ffc107; color: #212529; padding: 8px 12px; text-decoration: none; border-radius: 4px; font-size: 12px; transition: background-color 0.3s; white-space: nowrap;">
+                                    Редакт.
+                                </a>
+                            {% endif %}
+                        </div>
+</div>
                 </div>
             {% endfor %}
         </div>

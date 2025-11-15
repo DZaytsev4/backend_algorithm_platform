@@ -43,3 +43,27 @@ def add_algorithm(request):
         form = AlgorithmForm()
     
     return render(request, 'algorithms/add_algorithm.html', {'form': form})
+
+@login_required
+def edit_algorithm(request, algorithm_id):
+    """Представление для редактирования алгоритма"""
+    algorithm = get_object_or_404(Algorithm, id=algorithm_id)
+    
+    # Проверяем, может ли пользователь редактировать этот алгоритм
+    if not algorithm.can_edit(request.user):
+        messages.error(request, 'У вас нет прав для редактирования этого алгоритма.')
+        return redirect('algorithm_detail', algorithm_id=algorithm_id)
+    
+    if request.method == 'POST':
+        form = AlgorithmForm(request.POST, instance=algorithm)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Алгоритм успешно обновлен!')
+            return redirect('algorithm_detail', algorithm_id=algorithm_id)
+    else:
+        form = AlgorithmForm(instance=algorithm)
+    
+    return render(request, 'algorithms/edit_algorithm.html', {
+        'form': form,
+        'algorithm': algorithm
+    })

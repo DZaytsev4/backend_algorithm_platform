@@ -77,14 +77,14 @@
     
     <!-- Действия -->
     <div style="margin-top: 30px; text-align: center;">
-        <a href="{% url 'algorithm_list' %}" class="btn btn-secondary" style="margin-right: 10px;">
-            ← Назад к списку
+    <a href="{% url 'algorithm_list' %}" class="btn btn-secondary" style="margin-right: 10px;">
+        ← Назад к списку
+    </a>
+    {% if user.is_authenticated and user.username == algorithm.author_name %}
+        <a href="{% url 'edit_algorithm' algorithm.id %}" class="btn btn-primary">
+            Редактировать алгоритм
         </a>
-        {% if user.is_authenticated and user.username == algorithm.author_name %}
-            <button class="btn btn-primary" disabled style="opacity: 0.6;">
-                Редактировать (скоро)
-            </button>
-        {% endif %}
+    {% endif %}
     </div>
 </div>
 

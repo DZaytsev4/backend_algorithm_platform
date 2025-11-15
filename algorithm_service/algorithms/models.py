@@ -12,6 +12,10 @@ class Algorithm(models.Model):
     def __str__(self):
         return self.name
     
+    def can_edit(self, user):
+        """Проверяет, может ли пользователь редактировать алгоритм"""
+        return user.is_authenticated and user.username == self.author_name
+
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'Алгоритм'
