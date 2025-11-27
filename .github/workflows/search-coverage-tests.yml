@@ -1,4 +1,4 @@
-name: Search and Coverage Tests
+name: Search Tests
 
 on:
   push:
