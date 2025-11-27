@@ -1,221 +1,300 @@
-# algorithms/tests.py
 from django.test import TestCase
+from django.contrib.auth.models import User, Group
+from rest_framework.test import APIClient
+from rest_framework import status
 from django.urls import reverse
-from django.contrib.auth.models import User 
 from .models import Algorithm
 
-class SearchFunctionalityTests(TestCase):
+class AlgorithmViewsTests(TestCase):
     def setUp(self):
-        Algorithm.objects.create(
-            name="Бинарный поиск",
-            tegs="поиск, алгоритм, массив",
-            description="Алгоритм поиска в отсортированном массиве",
-            code="def binary_search(arr, target):\n    left, right = 0, len(arr) - 1"
-        )
-        Algorithm.objects.create(
-            name="Сортировка пузырьком", 
-            tegs="сортировка, алгоритм, python",
-            description="Простой алгоритм сортировки",
-            code="def bubble_sort(arr):\n    n = len(arr)"
-        )
-        Algorithm.objects.create(
-            name="Быстрая сортировка",
-            tegs="сортировка, quicksort, рекурсия", 
-            description="Эффективный алгоритм сортировки",
-            code="def quick_sort(arr):\n    if len(arr) <= 1:\n        return arr"
-        )
-
-    def test_search_by_algorithm_name(self):
-        """Тест поиска по названию алгоритма"""
-        response = self.client.get(reverse('algorithm_list'), {'q': 'Бинарный'})
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Бинарный поиск")
-        self.assertNotContains(response, "Сортировка пузырьком")
-
-    def test_search_by_tags(self):
-        """Тест поиска по тегам"""
-        response = self.client.get(reverse('algorithm_list'), {'q': 'python'})
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Сортировка пузырьком")
-        self.assertNotContains(response, "Быстрая сортировка")
-
-    def test_search_multiple_results(self):
-        """Тест поиска, который находит несколько результатов"""
-        response = self.client.get(reverse('algorithm_list'), {'q': 'сортировка'})
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Сортировка пузырьком")
-        self.assertContains(response, "Быстрая сортировка")
-        self.assertNotContains(response, "Бинарный поиск")
-
-    def test_search_no_results(self):
-        """Тест поиска без результатов"""
-        response = self.client.get(reverse('algorithm_list'), {'q': 'несуществующий'})
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "ничего не найдено")
-        self.assertNotContains(response, "Бинарный поиск")
-
-    def test_empty_search_returns_all(self):
-        """Тест пустого поиска (должен вернуть все алгоритмы)"""
-        response = self.client.get(reverse('algorithm_list'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Бинарный поиск")
-        self.assertContains(response, "Сортировка пузырьком")
-        self.assertContains(response, "Быстрая сортировка")
-
-
-#-----------------------------------------------------------------------------
-
-class AuthenticationTests(TestCase):
-    """Тесты для регистрации, входа и выхода из системы"""
-    
-    def setUp(self):
-        # Создаем тестового пользователя для тестов входа
-        self.user_data = {
-            'username': 'testuser',
-            'email': 'test@example.com', 
-            'password': 'testpass123'
-        }
+        """Настройка тестовых данных"""
+        self.client = APIClient()
+        
+        # Создаем группы и пользователей
+        self.moderator_group = Group.objects.create(name='Модераторы')
+        
+        # Обычный пользователь
         self.user = User.objects.create_user(
-            username=self.user_data['username'],
-            email=self.user_data['email'],
-            password=self.user_data['password']
-        )
-
-    def test_user_registration_success(self):
-        """Тест успешной регистрации нового пользователя"""
-        new_user_data = {
-            'username': 'newuser',
-            'email': 'newuser@example.com',
-            'password1': 'complexpassword123',
-            'password2': 'complexpassword123'
-        }
-        
-        response = self.client.post(reverse('register'), new_user_data)
-        
-        # Проверяем редирект после успешной регистрации
-        self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse('algorithm_list'))
-        
-        # Проверяем, что пользователь создан в базе данных
-        self.assertTrue(User.objects.filter(username='newuser').exists())
-        
-        # Проверяем, что пользователь автоматически авторизован после регистрации
-        response = self.client.get(reverse('algorithm_list'))
-        self.assertContains(response, 'Выйти')  # Кнопка выхода вместо входа
-
-    def test_user_registration_password_mismatch(self):
-        """Тест регистрации с несовпадающими паролями"""
-        invalid_data = {
-            'username': 'newuser',
-            'email': 'newuser@example.com',
-            'password1': 'password123',
-            'password2': 'differentpassword'
-        }
-        
-        response = self.client.post(reverse('register'), invalid_data)
-        
-        # Должен остаться на странице регистрации с ошибкой
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'error')
-        self.assertFalse(User.objects.filter(username='newuser').exists())
-
-    def test_user_registration_existing_username(self):
-        """Тест регистрации с уже существующим именем пользователя"""
-        existing_user_data = {
-            'username': 'testuser',  # Уже существует
-            'email': 'new@example.com',
-            'password1': 'password123',
-            'password2': 'password123'
-        }
-        
-        response = self.client.post(reverse('register'), existing_user_data)
-        
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'error')
-
-    def test_user_login_success(self):
-        """Тест успешного входа в систему"""
-        login_data = {
-            'username': self.user_data['username'],
-            'password': self.user_data['password']
-        }
-        
-        response = self.client.post(reverse('login'), login_data)
-        
-        # Проверяем редирект после успешного входа
-        self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse('algorithm_list'))
-        
-        # Проверяем, что пользователь авторизован
-        response = self.client.get(reverse('algorithm_list'))
-        self.assertContains(response, 'Выйти')  # Кнопка выхода вместо входа
-
-    def test_user_login_wrong_password(self):
-        """Тест входа с неправильным паролем"""
-        login_data = {
-            'username': self.user_data['username'],
-            'password': 'wrongpassword'
-        }
-        
-        response = self.client.post(reverse('login'), login_data)
-        
-        # Должен остаться на странице входа с ошибкой
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Неверное имя пользователя или пароль')
-
-    def test_user_login_nonexistent_user(self):
-        """Тест входа с несуществующим пользователем"""
-        login_data = {
-            'username': 'nonexistent',
-            'password': 'anypassword'
-        }
-        
-        response = self.client.post(reverse('login'), login_data)
-        
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Неверное имя пользователя или пароль')
-
-    def test_user_logout(self):
-        """Тест выхода из системы"""
-        # Сначала логинимся
-        self.client.login(
-            username=self.user_data['username'],
-            password=self.user_data['password']
+            username='testuser',
+            password='testpass123',
+            email='user@test.com'
         )
         
-        # Проверяем, что пользователь авторизован
-        response = self.client.get(reverse('algorithm_list'))
-        self.assertContains(response, 'Выйти')
+        # Модератор
+        self.moderator = User.objects.create_user(
+            username='moderator',
+            password='modpass123',
+            email='mod@test.com'
+        )
+        self.moderator.groups.add(self.moderator_group)
         
-        # Выходим
-        response = self.client.post(reverse('logout'))
-        
-        # Проверяем редирект после выхода
-        self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse('algorithm_list'))
-        
-        # Проверяем, что пользователь разлогинен
-        response = self.client.get(reverse('algorithm_list'))
-        self.assertContains(response, 'Войти')  # Теперь должна быть кнопка входа
-
-    def test_navigation_links_authenticated(self):
-        """Тест навигационных ссылок для авторизованного пользователя"""
-        self.client.login(
-            username=self.user_data['username'],
-            password=self.user_data['password']
+        # Другой пользователь
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            password='otherpass123',
+            email='other@test.com'
         )
         
-        response = self.client.get(reverse('algorithm_list'))
+        # Создаем тестовые алгоритмы
+        self.approved_algorithm = Algorithm.objects.create(
+            name='Утвержденный алгоритм',
+            description='Описание утвержденного алгоритма',
+            code='print("approved")',
+            author_name='testuser',
+            status=Algorithm.STATUS_APPROVED
+        )
         
-        # Должны видеть кнопку выхода, а не входа
-        self.assertContains(response, 'Выйти')
-        self.assertNotContains(response, 'Войти')
+        self.pending_algorithm = Algorithm.objects.create(
+            name='Ожидающий алгоритм',
+            description='Описание ожидающего алгоритма',
+            code='print("pending")',
+            author_name='testuser',
+            status=Algorithm.STATUS_PENDING
+        )
+        
+        self.rejected_algorithm = Algorithm.objects.create(
+            name='Отклоненный алгоритм',
+            description='Описание отклоненного алгоритма',
+            code='print("rejected")',
+            author_name='testuser',
+            status=Algorithm.STATUS_REJECTED
+        )
+        
+        self.other_user_algorithm = Algorithm.objects.create(
+            name='Алгоритм другого пользователя',
+            description='Описание другого алгоритма',
+            code='print("other")',
+            author_name='otheruser',
+            status=Algorithm.STATUS_APPROVED
+        )
 
-    def test_navigation_links_unauthenticated(self):
-        """Тест навигационных ссылок для неавторизованного пользователя"""
+    def _get_results(self, response):
+        """Вспомогательный метод для получения результатов из пагинированного ответа"""
+        return response.data.get('results', response.data)
+
+    def test_get_algorithms_for_regular_user(self):
+        """Тест получения списка алгоритмов для обычного пользователя"""
+        self.client.force_authenticate(user=self.user)
+        
         response = self.client.get(reverse('algorithm_list'))
         
-        # Должны видеть кнопки входа и регистрации
-        self.assertContains(response, 'Войти')
-        self.assertContains(response, 'Регистрация')
-        self.assertNotContains(response, 'Выйти')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Получаем результаты из пагинированного ответа
+        results = self._get_results(response)
+        self.assertIsInstance(results, list)
+        
+        # Обычный пользователь видит утвержденные алгоритмы и свои (включая отклоненные)
+        algorithm_names = [alg['name'] for alg in results]
+        self.assertIn('Утвержденный алгоритм', algorithm_names)
+        self.assertIn('Ожидающий алгоритм', algorithm_names)  # Свой алгоритм
+        self.assertIn('Алгоритм другого пользователя', algorithm_names)  # Утвержденный чужой
+        self.assertIn('Отклоненный алгоритм', algorithm_names)  # Свой отклоненный
+
+    def test_get_algorithms_for_moderator(self):
+        """Тест получения списка алгоритмов для модератора"""
+        self.client.force_authenticate(user=self.moderator)
+        
+        response = self.client.get(reverse('algorithm_list'))
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Получаем результаты из пагинированного ответа
+        results = self._get_results(response)
+        self.assertIsInstance(results, list)
+        
+        # Модератор видит все алгоритмы
+        algorithm_names = [alg['name'] for alg in results]
+        self.assertIn('Утвержденный алгоритм', algorithm_names)
+        self.assertIn('Ожидающий алгоритм', algorithm_names)
+        self.assertIn('Отклоненный алгоритм', algorithm_names)
+        self.assertIn('Алгоритм другого пользователя', algorithm_names)
+
+    def test_algorithm_search_filter(self):
+        """Тест фильтрации алгоритмов по поисковому запросу"""
+        self.client.force_authenticate(user=self.moderator)
+        
+        # Поиск по названию - только один алгоритм должен подходить
+        response = self.client.get(reverse('algorithm_list'), {'q': 'Утвержденный'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        results = self._get_results(response)
+        self.assertIsInstance(results, list)
+        
+        # Должен найти только один алгоритм с этим именем
+        found_algorithms = [alg for alg in results if 'Утвержденный' in alg['name']]
+        self.assertEqual(len(found_algorithms), 1)
+        self.assertEqual(found_algorithms[0]['name'], 'Утвержденный алгоритм')
+        
+        # Поиск по описанию
+        response = self.client.get(reverse('algorithm_list'), {'q': 'ожидающего'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = self._get_results(response)
+        found_algorithms = [alg for alg in results if 'Ожидающий алгоритм' in alg['name']]
+        self.assertEqual(len(found_algorithms), 1)
+        
+        # Поиск по автору
+        response = self.client.get(reverse('algorithm_list'), {'q': 'otheruser'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = self._get_results(response)
+        found_algorithms = [alg for alg in results if 'Алгоритм другого пользователя' in alg['name']]
+        self.assertEqual(len(found_algorithms), 1)
+
+    def test_create_algorithm_by_user(self):
+        """Тест создания алгоритма пользователем"""
+        self.client.force_authenticate(user=self.user)
+        
+        data = {
+            'name': 'Новый алгоритм',
+            'description': 'Описание нового алгоритма',
+            'code': 'print("new")',
+            'tegs': 'python,test'
+        }
+        
+        response = self.client.post(reverse('algorithm_list'), data)
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['name'], 'Новый алгоритм')
+        self.assertEqual(response.data['status'], Algorithm.STATUS_PENDING)
+        self.assertEqual(response.data['author_name'], 'testuser')
+        
+        # Проверяем дополнительные поля из сериализатора
+        self.assertIn('status_display', response.data)
+        self.assertIn('tags_list', response.data)
+        self.assertIn('can_edit', response.data)
+        self.assertIn('can_moderate', response.data)
+        
+        # Проверяем, что алгоритм действительно создан в БД
+        self.assertTrue(Algorithm.objects.filter(name='Новый алгоритм').exists())
+
+    def test_update_algorithm_by_author(self):
+        """Тест обновления алгоритма автором"""
+        self.client.force_authenticate(user=self.user)
+        
+        data = {
+            'name': 'Обновленное название',
+            'description': self.pending_algorithm.description,
+            'code': self.pending_algorithm.code,
+            'tegs': 'updated, tags'
+        }
+        
+        response = self.client.put(
+            reverse('algorithm_detail', kwargs={'pk': self.pending_algorithm.id}), 
+            data,
+            format='json'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['name'], 'Обновленное название')
+        
+        # Проверяем обновление в БД
+        self.pending_algorithm.refresh_from_db()
+        self.assertEqual(self.pending_algorithm.name, 'Обновленное название')
+
+    def test_update_algorithm_by_non_author(self):
+        """Тест обновления алгоритма не-автором"""
+        self.client.force_authenticate(user=self.other_user)
+        
+        data = {
+            'name': 'Попытка чужого обновления',
+            'description': self.pending_algorithm.description,
+            'code': self.pending_algorithm.code
+        }
+        
+        response = self.client.put(
+            reverse('algorithm_detail', kwargs={'pk': self.pending_algorithm.id}), 
+            data,
+            format='json'
+        )
+        
+        # Должен возвращать 404, потому что алгоритм не виден в queryset для этого пользователя
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_algorithm_by_author(self):
+        """Тест удаления алгоритма автором"""
+        self.client.force_authenticate(user=self.user)
+        
+        algorithm_id = self.pending_algorithm.id
+        response = self.client.delete(reverse('algorithm_detail', kwargs={'pk': algorithm_id}))
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # Проверяем, что алгоритм удален из БД
+        self.assertFalse(Algorithm.objects.filter(id=algorithm_id).exists())
+
+    def test_delete_algorithm_by_non_author(self):
+        """Тест удаления алгоритма не-автором"""
+        self.client.force_authenticate(user=self.other_user)
+        
+        algorithm_id = self.pending_algorithm.id
+        response = self.client.delete(reverse('algorithm_detail', kwargs={'pk': algorithm_id}))
+        
+        # Должен возвращать 404, потому что алгоритм не виден в queryset для этого пользователя
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        
+        # Проверяем, что алгоритм НЕ удален из БД
+        self.assertTrue(Algorithm.objects.filter(id=algorithm_id).exists())
+
+    def test_moderation_list_access_for_moderator(self):
+        """Тест доступа к списку модерации для модератора"""
+        self.client.force_authenticate(user=self.moderator)
+        
+        response = self.client.get(reverse('moderation_list'))
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # В списке модерации только ожидающие алгоритмы
+        self.assertIsInstance(response.data, list)  # Этот endpoint не пагинирован
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['name'], 'Ожидающий алгоритм')
+
+    def test_moderation_list_access_for_regular_user(self):
+        """Тест доступа к списку модерации для обычного пользователя"""
+        self.client.force_authenticate(user=self.user)
+        
+        response = self.client.get(reverse('moderation_list'))
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_approve_algorithm_by_moderator(self):
+        """Тест утверждения алгоритма модератором"""
+        self.client.force_authenticate(user=self.moderator)
+        
+        data = {
+            'status': Algorithm.STATUS_APPROVED
+        }
+        
+        response = self.client.post(
+            reverse('moderate_algorithm', kwargs={'algorithm_id': self.pending_algorithm.id}), 
+            data
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], Algorithm.STATUS_APPROVED)
+        
+        # Проверяем обновление в БД
+        self.pending_algorithm.refresh_from_db()
+        self.assertEqual(self.pending_algorithm.status, Algorithm.STATUS_APPROVED)
+        self.assertEqual(self.pending_algorithm.moderated_by, self.moderator)
+        self.assertIsNotNone(self.pending_algorithm.moderated_at)
+
+    def test_reject_algorithm_by_moderator(self):
+        """Тест отклонения алгоритма модератором"""
+        self.client.force_authenticate(user=self.moderator)
+        
+        data = {
+            'status': Algorithm.STATUS_REJECTED,
+            'rejection_reason': 'Не соответствует требованиям'
+        }
+        
+        response = self.client.post(
+            reverse('moderate_algorithm', kwargs={'algorithm_id': self.pending_algorithm.id}), 
+            data
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], Algorithm.STATUS_REJECTED)
+        self.assertEqual(response.data['rejection_reason'], 'Не соответствует требованиям')
+        
+        # Проверяем обновление в БД
+        self.pending_algorithm.refresh_from_db()
+        self.assertEqual(self.pending_algorithm.status, Algorithm.STATUS_REJECTED)
+        self.assertEqual(self.pending_algorithm.rejection_reason, 'Не соответствует требованиям')

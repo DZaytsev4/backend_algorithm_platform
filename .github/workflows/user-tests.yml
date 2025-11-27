@@ -1,0 +1,61 @@
+name: User Functionality Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  user-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run migrations
+      run: |
+        cd backend
+        python manage.py migrate
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
+        SECRET_KEY: test-secret-key
+    
+    - name: Run User Tests
+      run: |
+        cd backend
+        python manage.py test algorithms.tests.AlgorithmViewsTests.test_get_algorithms_for_regular_user \
+                               algorithms.tests.AlgorithmViewsTests.test_create_algorithm_by_user \
+                               algorithms.tests.AlgorithmViewsTests.test_update_algorithm_by_author \
+                               algorithms.tests.AlgorithmViewsTests.test_update_algorithm_by_non_author \
+                               algorithms.tests.AlgorithmViewsTests.test_delete_algorithm_by_author \
+                               algorithms.tests.AlgorithmViewsTests.test_delete_algorithm_by_non_author \
+                               algorithms.tests.AlgorithmViewsTests.test_moderation_list_access_for_regular_user \
+          --verbosity=2
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
+        SECRET_KEY: test-secret-key
+        DEBUG: "False"
